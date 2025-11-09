@@ -8,7 +8,7 @@
   "sources": {
     "5.56x45 M855": {
       "url": "https://www.dpcamp.cn/jiaoyixing/rijiagezhangfu/default.html",
-      "selector": ".price .median",
+      "selector": "#app-layout > div.content-page > div > div.row > div > div.card-body.product-body.p-0 > div > table > tbody > tr:nth-child(2) > td:nth-child(4) > div",
       "regex": "[\\d.]+",
       "headers": {
         "User-Agent": "delta-fetcher/1.0"
