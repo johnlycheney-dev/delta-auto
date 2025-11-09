@@ -1,0 +1,44 @@
+name: Fetch Market & Publish JSON
+
+on:
+  schedule:
+    # SGT(+8) -> UTC: 10:00(02:00), 12:30(04:30), 15:00(07:00), 18:30(10:30), 21:30(13:30), 23:00(15:00)
+    - cron: '0 2 * * *'
+    - cron: '30 4 * * *'
+    - cron: '0 7 * * *'
+    - cron: '30 10 * * *'
+    - cron: '30 13 * * *'
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run fetcher
+        run: npm run fetch
+
+      - name: Commit JSON
+        run: |
+          git config user.name "actions-bot"
+          git config user.email "actions-bot@users.noreply.github.com"
+          git add public/market-today.json
+          git commit -m "chore: update market-today.json" || echo "no changes"
+          git push
+
+      - name: Upload artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-today.json
+          path: public/market-today.json
