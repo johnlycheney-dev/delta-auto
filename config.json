@@ -7,7 +7,7 @@
   ],
   "sources": {
     "5.56x45 M855": {
-      "url": "https://example.com/market/556-m855",
+      "url": "https://www.dpcamp.cn/jiaoyixing/rijiagezhangfu/default.html",
       "selector": ".price .median",
       "regex": "[\\d.]+",
       "headers": {
