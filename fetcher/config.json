@@ -15,24 +15,24 @@
       }
     },
     "9x19 PST": {
-      "url": "https://example.com/market/9x19-pst",
-      "selector": ".price .median",
+      "url": "http://dpcamp.cn/jiaoyixing/rijiagezhangfu/default.html",
+      "selector": "#app-layout > div.content-page > div > div.row > div > div.card-body.product-body.p-0 > div > table > tbody > tr:nth-child(2) > td:nth-child(4) > div",
       "regex": "[\\d.]+",
       "headers": {
         "User-Agent": "delta-fetcher/1.0"
       }
     },
     "7.62x39 PS": {
-      "url": "https://example.com/market/762x39-ps",
-      "selector": ".price .median",
+      "url": "http://dpcamp.cn/jiaoyixing/rijiagezhangfu/default.html",
+      "selector": "#app-layout > div.content-page > div > div.row > div > div.card-body.product-body.p-0 > div > table > tbody > tr:nth-child(2) > td:nth-child(4) > div",
       "regex": "[\\d.]+",
       "headers": {
         "User-Agent": "delta-fetcher/1.0"
       }
     },
     "7.62x51 M80": {
-      "url": "https://example.com/market/762x51-m80",
-      "selector": ".price .median",
+      "url": "http://dpcamp.cn/jiaoyixing/rijiagezhangfu/default.html",
+      "selector": "#app-layout > div.content-page > div > div.row > div > div.card-body.product-body.p-0 > div > table > tbody > tr:nth-child(2) > td:nth-child(4) > div",
       "regex": "[\\d.]+",
       "headers": {
         "User-Agent": "delta-fetcher/1.0"
