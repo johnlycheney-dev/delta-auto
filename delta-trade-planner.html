@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三角洲交易行 · 每日买卖提醒生成器</title>
+<meta name="description" content="离线小站：根据当日中位价M和手续费，计算今天各时点的买入/卖出价，并一键导出日程提醒（ICS）。">
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#121a2b;
+    --muted:#7b8aa2;
+    --txt:#e7efff;
+    --ac:#58c1ff;
+    --good:#3ddc97;
+    --warn:#ffb454;
+    --bad:#ff6b6b;
+    --card:#0f1626;
+    --border:#1f2a44;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:radial-gradient(1200px 800px at 20% -10%, #112042 0%, rgba(17,32,66,0) 70%), var(--bg);
+    color:var(--txt); font:16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", Arial, sans-serif;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:24px}
+  header{display:flex;gap:16px;align-items:center;margin:8px 0 20px}
+  header .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#5ee7df,#b490ca);box-shadow:0 6px 20px rgba(94,231,223,.25)}
+  h1{font-size:20px;margin:0}
+  .sub{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1.2fr .8fr}}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+  .card h2{font-size:16px;margin:0 0 10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:10px 12px;background:#0c1323;color:var(--txt);border:1px solid var(--border);
+    border-radius:10px;outline:none;transition:.2s;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(88,193,255,.15)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .btn{
+    background:linear-gradient(135deg,#3aa6ff 0%, #8be9fd 100%);color:#041223;border:none;border-radius:12px;
+    padding:12px 16px;font-weight:700;cursor:pointer;transition:transform .08s ease, filter .2s;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.secondary{background:#0e1a31;color:#cfe3ff;border:1px solid var(--border);font-weight:600}
+  .btn.danger{background:linear-gradient(135deg,#ff6b6b,#ffa2a2);color:#2a0e0e}
+  .muted{color:var(--muted)}
+  table{width:100%;border-collapse:separate;border-spacing:0 8px}
+  th,td{padding:10px 12px;text-align:left}
+  thead th{font-size:12px;color:#9eb0cc;border-bottom:1px dashed var(--border)}
+  tbody tr{background:var(--card);border:1px solid var(--border)}
+  tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+  tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#0c1323}
+  .ok{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .tiny{font-size:12px}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#cfe3ff}
+  .footer{margin:24px 0 0;color:#8ea2c7;font-size:12px}
+  .tag{font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:#0a1221;color:#93a9cf}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"></div>
+    <div>
+      <h1>三角洲交易行 · 每日买卖提醒生成器</h1>
+      <div class="sub">离线运行 · 本地存储 · 以“最近成交中位价（M）”计算买卖触发与目标价 · 一键导出ICS提醒（SGT）</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>① 基本设置</h2>
+      <div class="row">
+        <div>
+          <label>手续费率（例：6% 写 0.06）</label>
+          <input id="fee" type="number" step="0.001" value="0.06">
+        </div>
+        <div>
+          <label>资金总额（万哈弗币，可选，用于建议批量）</label>
+          <input id="capital" type="number" step="1" value="500">
+        </div>
+      </div>
+      <label>提醒时间点（24小时制，逗号分隔）</label>
+      <input id="times" type="text" value="10:00,12:30,15:00,18:30,21:30,23:00">
+      <div class="flex" style="margin-top:10px">
+        <button class="btn" id="saveSettings">保存设置</button>
+        <button class="btn secondary" id="resetSettings">恢复默认</button>
+        <span class="muted tiny">时区：<span class="tag">Asia/Singapore</span></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>② 数据导入（可选）</h2>
+      <label>市场数据JSON地址（同源或允许CORS）</label>
+      <input id="dataUrl" type="text" placeholder='例如：https://your-domain.com/market-today.json'>
+      <div class="row">
+        <button class="btn" id="fetchData">从URL拉取M</button>
+        <button class="btn secondary" id="clearM">清空今日M</button>
+      </div>
+      <p class="tiny muted">JSON格式：{"date":"2025-11-10","items":[{"sku":"5.56x45 M855","M":12.3},{"sku":"9x19 PST","M":8.5}]}</p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <h2>③ SKU 列表（可编辑）</h2>
+    <p class="tiny muted">默认列出 4 个常用品。可新增/删除。M=最近成交中位价；α=买入系数；β=卖出系数。</p>
+    <div class="flex" style="margin:8px 0">
+      <button class="btn" id="addSku">新增SKU</button>
+      <button class="btn secondary" id="saveSkus">保存SKU到本地</button>
+      <button class="btn danger" id="resetSkus">恢复默认SKU</button>
+    </div>
+    <div class="tiny muted" style="margin-bottom:8px">提示：常用弹药优先做 <span class="kbd">5.56×45 M855</span>、<span class="kbd">9×19 PST</span>、<span class="kbd">7.62×39 PS</span>；晚场可加 <span class="kbd">7.62×51 M80</span>。</div>
+    <div id="skuContainer"></div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>④ 生成今日计划</h2>
+    <div class="flex">
+      <button class="btn" id="buildPlan">生成买/卖价格与提醒</button>
+      <button class="btn secondary" id="exportICS">导出ICS（日历提醒）</button>
+      <button class="btn secondary" id="clearPlan">清空计划</button>
+    </div>
+    <div id="planOut" style="margin-top:16px"></div>
+  </section>
+
+  <div class="footer">© 今日策略以你填入的 M 与参数为准；本站不连接游戏或外部接口，所有计算在本地完成。请遵守平台与游戏规则，避免使用任何自动化脚本。</div>
+</div>
+
+<template id="skuRowTpl">
+  <div class="card" style="margin:10px 0">
+    <div class="row">
+      <div>
+        <label>SKU 名称（精确检索名）</label>
+        <input data-f="name" type="text" placeholder="例如：5.56x45 M855">
+      </div>
+      <div>
+        <label>今日中位价 M（万）</label>
+        <input data-f="M" type="number" step="0.001" placeholder="例如：12.34">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>买入系数 α（买触发 = M×α）</label>
+        <input data-f="alpha" type="number" step="0.001" value="0.92">
+      </div>
+      <div>
+        <label>卖出系数 β（目标价 = M×β）</label>
+        <input data-f="beta" type="number" step="0.001" value="1.02">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>每批预算（万）</label>
+        <input data-f="lot" type="number" step="1" value="25">
+      </div>
+      <div>
+        <label>批次数（1~5）</label>
+        <input data-f="lots" type="number" step="1" value="3">
+      </div>
+    </div>
+    <div class="flex">
+      <span class="pill">保护价系数 β_min = <span data-f="betaMin" class="kbd">—</span></span>
+      <span class="pill">预计净差(按M计) = <span data-f="netDiff" class="kbd">—</span></span>
+      <button class="btn secondary" data-f="del">删除</button>
+    </div>
+  </div>
+</template>
+
+<script>
+const $ = (q, el=document)=>el.querySelector(q);
+const $$ = (q, el=document)=>Array.from(el.querySelectorAll(q));
+
+function load(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }
+function save(k, v){ localStorage.setItem(k, JSON.stringify(v)) }
+
+const defaultSkus = [
+  {name:"5.56x45 M855", M:null, alpha:0.92, beta:1.02, lot:25, lots:3},
+  {name:"9x19 PST", M:null, alpha:0.92, beta:1.02, lot:25, lots:3},
+  {name:"7.62x39 PS", M:null, alpha:0.93, beta:1.015, lot:20, lots:3},
+  {name:"7.62x51 M80", M:null, alpha:0.92, beta:1.02, lot:15, lots:2}
+];
+
+const state = {
+  fee: load("fee", 0.06),
+  capital: load("capital", 500),
+  times: load("times", "10:00,12:30,15:00,18:30,21:30,23:00"),
+  skus: load("skus", defaultSkus),
+  plan: load("plan", []),
+};
+
+// UI bindings
+$("#fee").value = state.fee;
+$("#capital").value = state.capital;
+$("#times").value = state.times;
+
+$("#saveSettings").onclick = ()=>{
+  state.fee = parseFloat($("#fee").value||"0.06");
+  state.capital = parseFloat($("#capital").value||"0");
+  state.times = $("#times").value.trim();
+  save("fee", state.fee); save("capital", state.capital); save("times", state.times);
+  alert("已保存设置");
+};
+$("#resetSettings").onclick = ()=>{
+  $("#fee").value = 0.06;
+  $("#capital").value = 500;
+  $("#times").value = "10:00,12:30,15:00,18:30,21:30,23:00";
+};
+
+function renderSkus(){
+  const box = $("#skuContainer"); box.innerHTML = "";
+  state.skus.forEach((s, idx)=>{
+    const row = document.importNode($("#skuRowTpl").content, true);
+    const el = row.children[0];
+    $("[data-f=name]", el).value = s.name;
+    $("[data-f=M]", el).value = (s.M ?? "");
+    $("[data-f=alpha]", el).value = s.alpha;
+    $("[data-f=beta]", el).value = s.beta;
+    $("[data-f=lot]", el).value = s.lot;
+    $("[data-f=lots]", el).value = s.lots;
+
+    const fee = parseFloat($("#fee").value||"0.06");
+    const betaMin = s.alpha / (1 - fee);
+    $("[data-f=betaMin]", el).textContent = betaMin ? betaMin.toFixed(3) : "—";
+    const netDiff = (s.M ? (s.M * s.beta * (1-fee) - s.M * s.alpha) : 0);
+    $("[data-f=netDiff]", el).textContent = s.M ? netDiff.toFixed(3)+" 万/单位" : "—";
+
+    $("[data-f=del]", el).onclick = ()=>{
+      state.skus.splice(idx,1); renderSkus();
+    };
+
+    // Watch inputs to update state
+    $$("input", el).forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        s.name = $("[data-f=name]", el).value.trim();
+        s.M = parseFloat($("[data-f=M]", el).value || ""); if(Number.isNaN(s.M)) s.M = null;
+        s.alpha = parseFloat($("[data-f=alpha]", el).value||"0.92");
+        s.beta = parseFloat($("[data-f=beta]", el).value||"1.02");
+        s.lot = parseFloat($("[data-f=lot]", el).value||"25");
+        s.lots = parseFloat($("[data-f=lots]", el).value||"3");
+        renderSkus(); // re-render for recalculated betaMin/netDiff
+      });
+    });
+
+    box.appendChild(row);
+  });
+}
+renderSkus();
+
+$("#addSku").onclick = ()=>{
+  state.skus.push({name:"新SKU", M:null, alpha:0.92, beta:1.02, lot:10, lots:2});
+  renderSkus();
+};
+$("#saveSkus").onclick = ()=>{ save("skus", state.skus); alert("SKU已保存到本地"); };
+$("#resetSkus").onclick = ()=>{ state.skus = JSON.parse(JSON.stringify(defaultSkus)); renderSkus(); };
+
+$("#clearM").onclick = ()=>{
+  state.skus.forEach(s=>s.M=null); renderSkus();
+};
+
+$("#fetchData").onclick = async ()=>{
+  const url = $("#dataUrl").value.trim();
+  if(!url){ alert("请填写JSON地址"); return; }
+  try{
+    const r = await fetch(url, {cache:"no-cache"});
+    const j = await r.json();
+    const mp = new Map((j.items||[]).map(x=>[String(x.sku).trim(), x.M]));
+    state.skus.forEach(s=>{ if(mp.has(s.name)) s.M = parseFloat(mp.get(s.name)); });
+    renderSkus();
+    alert("已从URL写入今日M");
+  }catch(e){
+    alert("拉取失败："+e.message);
+  }
+};
+
+function parseTimes(str){
+  return str.split(",").map(s=>s.trim()).filter(Boolean);
+}
+
+// Build plan table
+$("#buildPlan").onclick = ()=>{
+  const fee = parseFloat($("#fee").value||"0.06");
+  const times = parseTimes($("#times").value);
+  const today = new Date();
+  const yyyy = today.getFullYear(); const mm = String(today.getMonth()+1).padStart(2,"0"); const dd = String(today.getDate()).padStart(2,"0");
+  const plan = [];
+  times.forEach(t=>{
+    // For simplicity：10:00/15:00/21:30默认是买；12:30/18:30复挂与清尾；23:00平仓
+    let type = "buy";
+    if(t==="12:30"||t==="18:30") type="relist";
+    if(t==="23:00") type="close";
+
+    state.skus.forEach(s=>{
+      if(!s.name) return;
+      const buy = s.M ? s.M * s.alpha : null;
+      const sell = s.M ? s.M * s.beta : null;
+      const betaMin = s.alpha / (1-fee);
+      const protect = s.M ? s.M * betaMin : null;
+      if(type==="buy" && s.M){
+        plan.push({time:t, type:"买入", sku:s.name, rule:`≤ M×${s.alpha.toFixed(3)}`, price:buy.toFixed(3), note:`买到立刻挂出 ≥ M×${s.beta.toFixed(3)}`});
+      }else if(type==="relist"){
+        plan.push({time:t, type:"复挂", sku:s.name, rule:`未成交单统一—2%重挂`, price:"—", note:`保护价 ≥ M×${betaMin.toFixed(3)}，勿低于此价`});
+      }else if(type==="close"){
+        plan.push({time:t, type:"平仓", sku:s.name, rule:`全部清掉`, price:"—", note:`不留隔夜；保护价 ≥ M×${betaMin.toFixed(3)}`});
+      }
+    });
+  });
+
+  state.plan = plan; save("plan", plan);
+  // Render
+  const out = [`<table><thead><tr><th>时间</th><th>动作</th><th>SKU</th><th>触发条件</th><th>参考价（万）</th><th>备注</th></tr></thead><tbody>`];
+  plan.forEach(p=>{
+    out.push(`<tr><td>${p.time}</td><td>${p.type}</td><td>${p.sku}</td><td>${p.rule}</td><td>${p.price}</td><td>${p.note}</td></tr>`);
+  });
+  out.push(`</tbody></table>`);
+  $("#planOut").innerHTML = out.join("");
+  window.scrollTo({top:document.body.scrollHeight, behavior:"smooth"});
+};
+
+function dtToICS(dt){
+  const pad=n=>String(n).padStart(2,"0");
+  return dt.getUTCFullYear()+pad(dt.getUTCMonth()+1)+pad(dt.getUTCDate())+"T"+pad(dt.getUTCHours())+pad(dt.getUTCMinutes())+pad(dt.getUTCSeconds())+"Z";
+}
+
+$("#exportICS").onclick = ()=>{
+  if(!state.plan.length){ alert("请先生成计划"); return; }
+  const today = new Date();
+  const yyyy = today.getFullYear(); const mm = String(today.getMonth()+1).padStart(2,"0"); const dd = String(today.getDate()).padStart(2,"0");
+  const title = `三角洲交易行 · ${yyyy}-${mm}-${dd} 计划`;
+  let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Delta Planner//CN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n";
+  const now = new Date();
+  const tzOffset = -now.getTimezoneOffset(); // minutes
+  // Build events
+  state.plan.forEach(p=>{
+    const [H,M] = p.time.split(":").map(Number);
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), H, M, 0);
+    const end = new Date(start.getTime() + 20*60000); // default 20min window
+    const uid = `${p.time}-${p.sku}-${now.getTime()}@delta-planner`;
+    const summary = `[${p.type}] ${p.sku} · ${p.rule}`;
+    const desc = `备注：${p.note}\n操作基于“最近成交中位价 M”。\n手续费：${($("#fee").value)||"0.06"}。\n`;
+    ics += "BEGIN:VEVENT\r\n";
+    ics += "UID:"+uid+"\r\n";
+    ics += "DTSTAMP:"+dtToICS(now)+"\r\n";
+    ics += "DTSTART:"+dtToICS(start)+"\r\n";
+    ics += "DTEND:"+dtToICS(end)+"\r\n";
+    ics += "SUMMARY:"+summary+"\r\n";
+    ics += "DESCRIPTION:"+desc.replace(/\n/g,"\\n")+"\r\n";
+    ics += "END:VEVENT\r\n";
+  });
+  ics += "END:VCALENDAR";
+  const blob = new Blob([ics], {type:"text/calendar"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `delta-planner-${yyyy}${mm}${dd}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+};
+
+$("#clearPlan").onclick = ()=>{ state.plan = []; save("plan", state.plan); $("#planOut").innerHTML=""; };
+
+// init save
+save("skus", state.skus);
+</script>
+</body>
+</html>
